@@ -36,7 +36,7 @@ def main():
         # The search is now repository-centric query
         query = "stars:>500"
         
-        MAX_REPOS_TO_PROCESS = 50
+        MAX_REPOS_TO_PROCESS = 1000
         
         repositories = g.search_repositories(query=query, sort='stars', order='desc')
         print(f"Found {repositories.totalCount} total repositories. Processing up to {MAX_REPOS_TO_PROCESS}...")
