@@ -1,6 +1,6 @@
-# Gitnore-Orrery: An AI-Powered .gitignore Generator That Shows Its Work
+# Gitnore-Orrery: An AI-Powered .gitignore Generator
 
-> [!shield] **What if you could watch an AI think?** Gitnore-Orrery is a smart `.gitignore` generator that not only creates files for your project but also visualizes its decision-making process in real-time, offering a unique glimpse into the "mind" of the machine.
+> **What if you could watch an AI think?** Gitnore-Orrery is a smart `.gitignore` generator that not only creates files for your project but also visualizes its decision-making process, offering a unique glimpse into the "mind" of the machine.
 
 ---
 
@@ -8,76 +8,90 @@
 
 Every developer needs `.gitignore` files, but creating a comprehensive one is a recurring, manual task. Existing generators are static templates. We can do better.
 
-**Git-Orrery** uses a simple Recurrent Neural Network (RNN) to learn the patterns from thousands of real-world `.gitignore` files. It doesn't just copy-paste a template; it generates the file line-by-line based on statistical patterns.
+**Gitnore-Orrery** uses a Sequence-to-Sequence model to learn patterns from thousands of real-world `.gitignore` files. It doesn't just copy-paste; it generates the file line-by-line based on the project's context (language, topics).
 
-The magic, however, is the **"Orrery"**: a real-time visualization of the AI's "thought process." For each line it adds, you see the probability scores of the other likely candidates—the "ghosts" of the lines not chosen. It's a practical utility and a fascinating educational tool in one.
-
-This project is a real-world application of the **"Cognitive Pressure"** framework, demonstrating how a simple prompt (`--lang python`) can act as a "cognitive gravity," shaping the AI's output.
+The magic, however, is the **"Orrery"**: a planned feature for real-time visualization of the AI's "thought process." For each line it adds, you'll see the probability scores of other likely candidates—the "ghosts" of the lines not chosen. It's a practical utility and a fascinating educational tool in one.
 
 ## 2. The Product: A Smarter Command-Line Tool
 
 The goal is a simple, elegant CLI that solves a real developer problem.
 
-*   **Input:** `orrery --lang python --min-prob 0.85 > .gitignore`
-*   **Process:**
-    1.  The user specifies a language or framework. This acts as the initial "seed" or prompt.
+-   **Input:** `orrery --lang python --topics django,api > .gitignore`
+-   **Process:**
+    1.  The user specifies a context (language, frameworks). This acts as the initial prompt.
     2.  The pre-trained PyTorch model generates a `.gitignore` file line by line.
-    3.  As it generates, it optionally prints its "thought process" to the console, showing the chosen line and its probability score.
-*   **Output:** A clean, comprehensive `.gitignore` file, ready for use.
+    3.  (Future) As it generates, it optionally prints its "thought process" to the console.
+-   **Output:** A clean, comprehensive `.gitignore` file, ready for use.
 
-![GIF of future demo showing the generation process]
 *(A placeholder for a future animated GIF showcasing the tool in action)*
 
 ## 3. The Architecture
 
-*   **Language:** Python 3
-*   **Core ML Framework:** PyTorch
-*   **Model:** A Line-Level Recurrent Neural Network (LSTM), trained to predict the next line of a `.gitignore` file.
-*   **Data:** A large corpus of `.gitignore` files from public repositories.
+-   **Language:** Python 3.x
+-   **Core ML Framework:** PyTorch
+-   **Model:** A Sequence-to-Sequence (Seq2Seq) model with LSTM cells.
+-   **Data:** A corpus of `.gitignore` files and repository metadata from over 1,000 public GitHub repositories.
 
 ## 4. Project Roadmap & Milestones
 
 This project is under active development.
 
--   [ ] **Milestone 1: The Data Pipeline**
-    -   [ ] Write a Python script (`scraper.py`) using the GitHub API (or a library like `PyGithub`) to find and download thousands of `.gitignore` files from popular repositories.
-    -   [ ] Write a pre-processing script to clean and consolidate the scraped data into a single, massive training file (`training_corpus.txt`).
-    -   [ ] Create the data-to-integer mapping required for the model.
+---
 
--   [ ] **Milestone 2: The Core Engine (Model v0.1)**
-    -   [ ] Design and build the LSTM model architecture in PyTorch.
-    -   [ ] Write the training loop to train the model on `training_corpus.txt`.
-    -   [ ] Save the trained model for later use.
+### ✅ **Milestone 1: The Data Pipeline**
+*Status: 100% Complete*
 
--   [ ] **Milestone 3: The Application (CLI v0.1)**
-    -   [ ] Build the command-line interface (`orrery.py`) using Python's `argparse`.
-    -   [ ] Implement the generation logic that loads the trained model and produces a `.gitignore` file.
-    -   [ ] Implement the "Orrery" visualization, printing the probability scores during generation.
+-   **Phase 1: Scraper (`src/scraper.py`):** Built a tool using the `PyGithub` API to collect `.gitignore` files and their corresponding repository metadata (language, topics).
+-   **Phase 2: Preprocessor (`src/preprocessor.py`):** Developed a script to clean, tokenize, and structure the raw data into a consistent format (`processed_corpus.jsonl`).
+-   **Phase 3: Mapper (`src/mapper.py`):** Created vocabularies to map context tokens and gitignore rules to integers, preparing the data for the model.
 
--   [ ] **Milestone 4: Refinement & Packaging**
-    -   [ ] Package the project for easy installation via `pip`.
-    -   [ ] Add comprehensive unit tests.
-    -   [ ] Refine the CLI and add more features (e.g., combining multiple languages).
+---
 
-## 5. Usage
+### ⏳ **Milestone 2: The Core Engine (Model v0.1)**
+*Status: In Progress*
+
+> **Action Plan: Building the Seq2Seq Brain**
+>
+> -   **Phase 4: The Dataset Class:** Implement a custom PyTorch `Dataset` class (`src/dataset.py`) to load, vectorize, and serve the processed data as tensors for the model.
+> -   **Phase 5: The Model Architecture:** Define the `Encoder`, `Decoder`, and `Seq2Seq` modules in PyTorch (`src/model.py`), which form the core of our neural network.
+> -   **Phase 6: The Training Loop:** Write the script (`src/train.py`) to feed data to the model, calculate loss, and update weights, ultimately teaching the model how to generate `.gitignore` files.
+
+---
+
+### 🗓️ **Milestone 3: The Application (CLI v0.1)**
+*Status: Planned*
+
+-   Build the command-line interface using Python's `argparse`.
+-   Implement the generation logic that loads the trained model and produces a `.gitignore` file.
+-   Implement the "Orrery" visualization.
+
+---
+
+### 🗓️ **Milestone 4: Refinement & Packaging**
+*Status: Planned*
+
+-   Package the project for easy installation via `pip`.
+-   Add comprehensive unit tests.
+-   Refine the CLI and add more features.
+
+---
+
+## 5. Usage (Example)
 
 *This section will be populated once the MVP is complete.*
 
 ```bash
-# Example of future usage
-git clone https://github.com/QueenOverlord/Git-Orrery.git
-cd Git-Orrery
+# Clone the repository
+git clone https://github.com/YourUsername/Gitnore-Orrery.git
+cd Gitnore-Orrery
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the scraper to build your own dataset (optional )
-python scraper.py --query "language:python" --max-repos 1000
-
-# Train the model on the new data (optional)
-python train.py
-
 # Generate a .gitignore file
 python orrery.py --lang python > .gitignore
 ```
- 
+
+---
+Project by [Polliana Pavloski](https://www.linkedin.com/in/polliana-pavloski/)
+---
