@@ -9,10 +9,7 @@ OUTPUT_FILE = os.path.join(DATA_DIR, "corpus.jsonl")
 
 def save_record(record):
     """Appends a single data record to the output file."""
-    # Ensures the data directory exists
     os.makedirs(DATA_DIR, exist_ok=True)
-    
-    # Open the file in append mode ('a') and save the JSON string
     with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
@@ -35,14 +32,13 @@ def main():
 
         # --- 2. Search and Process ---
         print("\n--- Starting Repository Search ---")
-        query = "filename:.gitignore stars:>100 fork:false"
         
-        # We will limit the number of repos to process for now to avoid long runs
-        # The API returns about 30 items per "page" by default.
-        # Let's process the first 50 repositories for this run.
+        # The search is now repository-centric query
+        query = "stars:>500"
+        
         MAX_REPOS_TO_PROCESS = 50
         
-        repositories = g.search_repositories(query=query)
+        repositories = g.search_repositories(query=query, sort='stars', order='desc')
         print(f"Found {repositories.totalCount} total repositories. Processing up to {MAX_REPOS_TO_PROCESS}...")
 
         count = 0
@@ -71,7 +67,8 @@ def main():
                 print(f"({count + 1}/{MAX_REPOS_TO_PROCESS}) Successfully processed and saved: {repo.full_name}")
 
             except UnknownObjectException:
-                # This can happen if a .gitignore file exists in the repo but is in a subdirectory
+                # This is now an EXPECTED and COMMON outcome.
+                # It just means the popular repo doesn't have a .gitignore in its root.
                 print(f"({count + 1}/{MAX_REPOS_TO_PROCESS}) Skipped {repo.full_name}: .gitignore not found in root.")
             except Exception as e:
                 print(f"({count + 1}/{MAX_REPOS_TO_PROCESS}) An error occurred for {repo.full_name}: {e}")
