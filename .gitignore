@@ -1,3 +1,28 @@
+# =============================================================================
+# VIRTUAL ENVIRONMENT
+# =============================================================================
+# Never commit the virtual environment folder. It contains packages specific
+# to this machine and can be rebuilt from requirements.txt.
 venv/
+
+# =============================================================================
+# SECRETS & ENVIRONMENT VARIABLES
+# =============================================================================
+# Ignore environment configuration files. These contain sensitive information
+# like API keys and should never be public.
 .env
+
+# =============================================================================
+# DATA FILES
+# =============================================================================
+# Ignore the data directory. The repository should contain the code to
+# generate the data, not the data itself, which can be very large.
 data/
+
+# =============================================================================
+# PYTHON ARTIFACTS
+# =============================================================================
+# Ignore the Python cache directory, which stores compiled bytecode files.
+# These are machine-specific and generated automatically.
+__pycache__/
+
