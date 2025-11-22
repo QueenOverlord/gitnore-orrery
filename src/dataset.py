@@ -8,25 +8,32 @@ class GitignoreDataset(Dataset):
     It reads a JSONL file containing contextual data (language, topics)
     and gitignore rules, then converts them into numerical tensors
     based on pre-built vocabularies.
+    
+    Version: 1.1 - Refactored for robustness.
     """
     def __init__(self, data_path, context_vocab_path, rules_vocab_path):
         """
         Initializes the dataset.
         
         Args:
-            data_path (str): Path to the processed_data.jsonl file.
+            data_path (str): Path to the processed_corpus.jsonl file.
             context_vocab_path (str): Path to the context_vocab.json file.
             rules_vocab_path (str): Path to the rules_vocab.json file.
         """
-        # Load vocabularies
-        with open(context_vocab_path, 'r') as f:
+        # --- 1. Load Vocabularies ---
+        with open(context_vocab_path, 'r', encoding='utf-8') as f:
             self.context_vocab = json.load(f)
-        with open(rules_vocab_path, 'r') as f:
+        with open(rules_vocab_path, 'r', encoding='utf-8') as f:
             self.rules_vocab = json.load(f)
+            
+        # --- 2. Define Special Token Indices for Robustness ---
+        # Explicitly get the index for the unknown token. Default to 1 if not found.
+        self.context_unk_idx = self.context_vocab.get('<unk>', 1)
+        self.rules_unk_idx = self.rules_vocab.get('<unk>', 1)
 
-        # Load the dataset line by line
+        # --- 3. Load the Dataset ---
         self.data = []
-        with open(data_path, 'r') as f:
+        with open(data_path, 'r', encoding='utf-8') as f:
             for line in f:
                 self.data.append(json.loads(line))
 
@@ -48,22 +55,33 @@ class GitignoreDataset(Dataset):
         record = self.data[idx]
 
         # --- 1. Process Context (Input) ---
-        # Combine language and topics into a single list of context tokens
-        context_tokens = [record['language']] + record['topics']
+        # Combine language and topics, ensuring they are Lowercase to match the vocab
+        context_tokens = []
         
-        # Convert context tokens to their integer representations using the vocab
-        # Use vocab.get(token, 0) to handle unknown tokens by mapping them to index 0 (UNK)
+        # Handle Language (check for None, then lower)
+        if record['language']:
+            context_tokens.append(record['language'].lower())
+            
+        # Handle Topics (lower all)
+        if record['topics']:
+            context_tokens.extend([t.lower() for t in record['topics']])
+        
+        # Convert context tokens to their integer representations
+        # Default to 0 (<unk>) if not found
         context_integers = [self.context_vocab.get(token, 0) for token in context_tokens]
         
         # Create a PyTorch tensor from the list of integers
         input_tensor = torch.tensor(context_integers, dtype=torch.long)
 
         # --- 2. Process Rules (Target) ---
-        # Get the list of gitignore rules
-        rules_tokens = record['gitignore_rules'] # Assumes this is already a list of strings
+        rules_tokens = record.get('gitignore_rules', []) # Use .get() for safety
         
         # Convert rule tokens to their integer representations
-        rules_integers = [self.rules_vocab.get(token, 0) for token in rules_tokens]
+        # We will add Start-of-Sequence and End-of-Sequence tokens here, which is a
+        # standard practice for sequence generation tasks.
+        sos_token = self.rules_vocab.get('<sos>', 2)
+        eos_token = self.rules_vocab.get('<eos>', 3)
+        rules_integers = [sos_token] + [self.rules_vocab.get(token, self.rules_unk_idx) for token in rules_tokens] + [eos_token]
         
         # Create a PyTorch tensor from the list of integers
         target_tensor = torch.tensor(rules_integers, dtype=torch.long)
@@ -72,5 +90,3 @@ class GitignoreDataset(Dataset):
             'input': input_tensor,
             'target': target_tensor
         }
-
-
