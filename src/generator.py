@@ -1,0 +1,136 @@
+import torch
+import json
+import os
+import sys
+import argparse
+
+# Import our architecture
+from model import Encoder, Decoder, Seq2Seq
+
+# --- CONFIGURATION (Must match train.py) ---
+HID_DIM = 256
+EMB_DIM = 128
+N_LAYERS = 2
+DROPOUT = 0.5
+
+# Paths
+DATA_DIR = "data"
+CONTEXT_VOCAB_PATH = os.path.join(DATA_DIR, "context_vocab.json")
+RULES_VOCAB_PATH = os.path.join(DATA_DIR, "rules_vocab.json")
+MODEL_PATH = "models/gitignore_model.pth"
+
+# Device (Force CPU for inference as it's cheap)
+device = torch.device('cpu')
+
+class GitignoreGenerator:
+    def __init__(self):
+        self.device = device
+        self._load_vocabs()
+        self._load_model()
+        
+    def _load_vocabs(self):
+        """Load the JSON dictionaries to translate text <-> numbers."""
+        if not os.path.exists(CONTEXT_VOCAB_PATH):
+            raise FileNotFoundError(f"Missing vocab file: {CONTEXT_VOCAB_PATH}")
+            
+        with open(CONTEXT_VOCAB_PATH, 'r') as f:
+            self.context_vocab = json.load(f)
+            
+        with open(RULES_VOCAB_PATH, 'r') as f:
+            self.rules_vocab = json.load(f)
+            
+        # Create reverse lookup (Int -> String) for decoding output
+        self.rules_vocab_rev = {v: k for k, v in self.rules_vocab.items()}
+        
+    def _load_model(self):
+        """Reconstruct the model and load the saved weights."""
+        input_dim = len(self.context_vocab)
+        output_dim = len(self.rules_vocab)
+        
+        # 1. Re-initialize the architecture
+        enc = Encoder(input_dim, EMB_DIM, HID_DIM, N_LAYERS, DROPOUT)
+        dec = Decoder(output_dim, EMB_DIM, HID_DIM, N_LAYERS, DROPOUT)
+        self.model = Seq2Seq(enc, dec, self.device)
+        
+        # 2. Load the weights
+        if not os.path.exists(MODEL_PATH):
+            raise FileNotFoundError(f"Model file not found at {MODEL_PATH}. Did you run train.py?")
+            
+        # Load weights (map_location ensures it loads on CPU even if trained on GPU)
+        self.model.load_state_dict(torch.load(MODEL_PATH, map_location=self.device))
+        self.model.eval() # CRITICAL: Switch to evaluation mode (turns off dropout)
+        
+    def generate(self, context_list, max_len=100):
+        """
+        The Inference Loop with Logit Masking (Anti-Repetition).
+        """
+        # 1. Tokenize Input
+        src_indexes = [self.context_vocab.get(t.lower(), 0) for t in context_list]
+        src_tensor = torch.LongTensor(src_indexes).unsqueeze(0).to(self.device)
+        
+        # 2. Encode
+        with torch.no_grad():
+            hidden, cell = self.model.encoder(src_tensor)
+        
+        # 3. Decode Loop
+        # Start with <unk> (index 0) or a specific start token if you had one.
+        # Based on your training, 0 seems to work as a kickstarter.
+        trg_indexes = [0] 
+        
+        generated_rules = []
+        
+        # KEEP TRACK OF WHAT WE'VE SEEN
+        seen_token_indexes = {0} # Start with 0 seen
+        
+        for i in range(max_len):
+            trg_tensor = torch.LongTensor([trg_indexes[-1]]).to(self.device)
+            
+            with torch.no_grad():
+                output, hidden, cell = self.model.decoder(trg_tensor, hidden, cell)
+            
+            # --- THE FIX: LOGIT MASKING ---
+            # Output is a vector of scores for every word in vocab.
+            # We set the score of words we've already seen to -Infinity.
+            # This forces the model to pick the "Next Best" word.
+            for seen_idx in seen_token_indexes:
+                # Be careful not to suppress <eos> (usually 3) if we want it to stop eventually
+                if seen_idx != 3: 
+                    output[0, seen_idx] = -float('inf')
+            
+            # Greedy prediction (pick highest probability REMAINING token)
+            pred_token = output.argmax(1).item()
+            
+            # Stop if <eos> (3) or <pad> (1)
+            if pred_token in [1, 3]:
+                break
+                
+            trg_indexes.append(pred_token)
+            seen_token_indexes.add(pred_token) # Mark as seen
+            
+            # Convert back to string
+            rule_str = self.rules_vocab_rev.get(pred_token, "<unk>")
+            
+            # Filter out artifact tokens if they still slip through
+            if rule_str not in ["<unk>", "<pad>", "<sos>", "<eos>"] and not rule_str.startswith("$tf/"):
+                generated_rules.append(rule_str)
+            
+        return generated_rules
+
+# --- CLI ENTRY POINT ---
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Generate .gitignore file.')
+    parser.add_argument('context', nargs='+', help='Language and topics (e.g., python django)')
+    args = parser.parse_args()
+    
+    print(f"--- Generating .gitignore for: {args.context} ---")
+    
+    try:
+        gen = GitignoreGenerator()
+        rules = gen.generate(args.context)
+        
+        print("\n# Generated by Gitnore-Orrery")
+        for rule in rules:
+            print(rule)
+            
+    except Exception as e:
+        print(f"Error: {e}")

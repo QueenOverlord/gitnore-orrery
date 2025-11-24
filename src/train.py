@@ -15,9 +15,9 @@ from model import Encoder, Decoder, Seq2Seq
 
 # --- CONFIGURATION ---
 # Hyperparameters (The dials we turn to tune performance)
-BATCH_SIZE = 2
+BATCH_SIZE = 8
 LEARNING_RATE = 0.001
-N_EPOCHS = 10
+N_EPOCHS = 30
 HID_DIM = 256
 EMB_DIM = 128
 N_LAYERS = 2
@@ -54,50 +54,56 @@ def collate_fn(batch):
 
 # --- 2. THE TRAINING LOOP (The Workout) ---
 def train(model, iterator, optimizer, criterion, clip):
-    model.train() # Turn on training mode (dropout active)
-    
+    model.train()
     epoch_loss = 0
     
+    # Get total number of batches for progress tracking
+    total_batches = len(iterator)
+    
     for i, (src, trg) in enumerate(iterator):
-        # src, trg are already on the correct device (handled in main loop usually, but we do it here)
+        start_batch = time.time() # Timer for this batch
         
-        optimizer.zero_grad() # Clear old gradients
-        
-        # Forward pass
-        # trg is [batch_size, trg_len]
+        optimizer.zero_grad()
         output = model(src, trg)
         
-        # Reshape for loss calculation
-        # output shape: [batch_size, trg_len, output_dim] -> [batch_size * trg_len, output_dim]
         output_dim = output.shape[-1]
-        output = output[:, 1:].reshape(-1, output_dim) # Skip <sos> token
+        output = output[:, 1:].reshape(-1, output_dim)
+        trg = trg[:, 1:].reshape(-1)
         
-        # trg shape: [batch_size, trg_len] -> [batch_size * trg_len]
-        trg = trg[:, 1:].reshape(-1) # Skip <sos> token
-        
-        # Calculate loss
         loss = criterion(output, trg)
-        
-        # Backward pass
         loss.backward()
         
-        # Clip gradients (prevent exploding gradients)
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
-        
-        # Update weights
         optimizer.step()
         
         epoch_loss += loss.item()
         
+        # --- HEARTBEAT PRINT (New!) ---
+        # Print every 5 batches so we know it's alive
+        if (i + 1) % 5 == 0:
+            print(f"   > Batch {i+1}/{total_batches} processed... (Loss: {loss.item():.4f})")
+            
     return epoch_loss / len(iterator)
 
 # --- MAIN EXECUTION ---
 def main():
-    # Check for GPU
     # FORCE CPU due to MX350 incompatibility
     device = torch.device('cpu')
-    print(f"Training on: {device}")
-    
+
+
+    # --- PRINT CONFIGURATION ---
+    print("\n" + "="*30)
+    print(f"🚀 GITNORE-ORRERY TRAINING CONFIG")
+    print("="*30)
+    print(f"• Device:      {'CPU (Forced)' if device.type == 'cpu' else 'GPU'}")
+    print(f"• Batch Size:  {BATCH_SIZE}")
+    print(f"• Epochs:      {N_EPOCHS}")
+    print(f"• Learn Rate:  {LEARNING_RATE}")
+    print(f"• Model Size:  {N_LAYERS} Layers / {HID_DIM} Hidden Dim")
+    print("="*30 + "\n")
+
+
+
     # 1. Load Data
     print("Loading dataset...")
     dataset = GitignoreDataset(PROCESSED_DATA, CONTEXT_VOCAB, RULES_VOCAB)
